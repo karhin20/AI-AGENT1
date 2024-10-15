@@ -25,18 +25,23 @@ app.post('/incoming', async (req, res) => {
   
   async function reply(msg) {
     chatMessages.push({
-      role: 'user',
-      content: msg,
+        role: 'user',
+        content: msg,
     });
-    const response = await openai.chat.completions.create({
-      messages: chatMessages,
-      model: 'gpt-3.5-turbo',
-      max_tokens: 300,
-      temperature: 0.5,
-      frequency_penalty: 0.5,
-    });
-    return response.choices[0].message.content;
-  }
+    try {
+        const response = await openai.chat.completions.create({
+            messages: chatMessages,
+            model: 'gpt-3.5-turbo',
+            max_tokens: 300,
+            temperature: 0.5,
+            frequency_penalty: 0.5,
+        });
+        return response.choices[0].message.content;
+    } catch (error) {
+        console.error('Error fetching AI response:', error);
+        throw new Error('Failed to get a response from the AI.'); 
+    }
+}
  
   const aiReply = await reply(message.Body);
 
