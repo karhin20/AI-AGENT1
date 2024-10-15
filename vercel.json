@@ -1,12 +1,9 @@
 {
 
     "version": 2,
- 
-    "name": "ai-agent1",
- 
     "builds": [
  
-       { "src": "app.js", "use": "@vercel/node" }
+       { "src": "*.js", "use": "@vercel/node" }
  
     ],
  
