@@ -49,6 +49,6 @@ app.listen(3000, () => {
   console.log('Express server listening on port 3000');
 });
 
-app.post('/preview', (req, res) => {
-  res.send('Deployment successful on Vercel!');
+app.get('/', (req, res) => {
+  res.json('Deployment successful on Vercel!');
 });
