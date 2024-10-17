@@ -13,4 +13,4 @@ const getGeminiModel = () => {
   return genAI.getGenerativeModel({ model: "gemini-pro" });
 };
 
-module.exports = { getGeminiModel, supabase };
+module.exports = { genAI, getGeminiModel };
