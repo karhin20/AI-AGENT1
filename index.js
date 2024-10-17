@@ -1,5 +1,6 @@
 const express = require('express');
-const { openai, supabase } = require('./utils');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { supabase } = require('./utils');
 
 const app = express();
 
@@ -11,6 +12,9 @@ app.use(
 
 const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+
 app.post('/incoming', async (req, res) => {
   const message = req.body;
 
@@ -18,30 +22,33 @@ app.post('/incoming', async (req, res) => {
   
   const chatMessages = [
     {
-      role: 'system',
-      content: 'reply to the messages you get in 100 character',
+      role: 'user',
+      parts: ['reply to the messages you get in 100 characters'],
     },
   ];
   
   async function reply(msg) {
     chatMessages.push({
-        role: 'user',
-        content: msg,
+      role: 'user',
+      parts: [msg],
     });
     try {
-        const response = await openai.chat.completions.create({
-            messages: chatMessages,
-            model: 'gpt-3.5-turbo',
-            max_tokens: 300,
-            temperature: 0.5,
-            frequency_penalty: 0.5,
-        });
-        return response.choices[0].message.content;
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const chat = model.startChat({
+        history: chatMessages,
+        generationConfig: {
+          maxOutputTokens: 300,
+          temperature: 0.5,
+        },
+      });
+      const result = await chat.sendMessage(msg);
+      const response = await result.response;
+      return response.text();
     } catch (error) {
-        console.error('Error fetching AI response:', error);
-        throw new Error('Failed to get a response from the AI.'); 
+      console.error('Error fetching Gemini response:', error);
+      throw new Error('Failed to get a response from Gemini.'); 
     }
-}
+  }
  
   const aiReply = await reply(message.Body);
 
