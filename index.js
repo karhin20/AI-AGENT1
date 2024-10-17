@@ -1,6 +1,6 @@
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { supabase, genAI, getGeminiModel } = require('./utils');
+const { supabase, getGeminiModel } = require('./utils');
 
 const app = express();
 
@@ -14,6 +14,19 @@ const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+
+// Define the reply function
+async function reply(msg) {
+  try {
+    const model = getGeminiModel();
+    const result = await model.generateContent(msg);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error('Error fetching Gemini response:', error);
+    throw new Error(`Failed to get a response from Gemini: ${error.message}`);
+  }
+}
 
 app.post('/incoming', async (req, res) => {
   const message = req.body;
