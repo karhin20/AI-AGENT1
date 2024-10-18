@@ -15,7 +15,7 @@ const MessagingResponse = require('twilio').twiml.MessagingResponse;
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// Define the reply function
+// Define the reply function with error handling
 async function reply(msg) {
   try {
     const model = getGeminiModel();
@@ -24,7 +24,8 @@ async function reply(msg) {
     return response.text();
   } catch (error) {
     console.error('Error fetching Gemini response:', error);
-    throw new Error(`Failed to get a response from Gemini: ${error.message}`);
+
+    return "I'm sorry, I'm having trouble responding right now. Please try again later.";
   }
 }
 
@@ -35,12 +36,14 @@ app.post('/incoming', async (req, res) => {
   try {
     const aiReply = await reply(message.Body);
     twiml.message(aiReply);
-    res.status(200).type('text/xml');
-    res.end(twiml.toString());
   } catch (error) {
     console.error('Error in /incoming route:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    // Use a custom error message if the reply function throws an error
+    twiml.message("I apologize, I cannot help you with that right now. Please ask another question or try again later.");
   }
+
+  res.status(200).type('text/xml');
+  res.end(twiml.toString());
 });
 
 app.listen(3000, () => {
