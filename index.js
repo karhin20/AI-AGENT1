@@ -25,7 +25,7 @@ async function reply(msg) {
   } catch (error) {
     console.error('Error fetching Gemini response:', error);
 
-    return "I'm sorry, I'm having trouble responding right now. Please try again later.";
+    return "I apologize, I cannot help you with that right now. Please ask another question or try again later.";
   }
 }
 
