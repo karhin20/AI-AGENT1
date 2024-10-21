@@ -111,7 +111,7 @@ async function getEmbeddings(text) {
         'Authorization': `Bearer ${API_KEY}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ inputs: text })
+      body: JSON.stringify({ inputs: { text: text } }) // Ensure the input is wrapped correctly
     });
 
     const data = await response.json();
