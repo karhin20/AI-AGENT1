@@ -1,5 +1,5 @@
 require('dotenv').config();
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -20,7 +20,6 @@ const limiter = rateLimit({
 
 // Apply rate limiting to all routes
 app.use(limiter);
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -83,13 +82,10 @@ console.log('Starting server...');
       console.error('Failed to set up Pinecone index. Some functionality may be limited.');
     } else {
       console.log('Pinecone index set up successfully.');
+      await initializeVectorStore(); // Initialize the vector store with business info
     }
     console.log('Pinecone setup complete, initializing other components...');
-    
-    // Here you can add any other async initialization if needed
-    // For example:
-    // await initializeOtherComponents();
-    
+
     console.log('All components initialized, starting Express server...');
     
     const PORT = process.env.PORT || 3001;
@@ -102,50 +98,6 @@ console.log('Starting server...');
     console.error('Error during server startup:', error);
   }
 })();
-
-async function handleCustomerQuery(query) {
-  if (!vectorStore) {
-    console.error('Vector store is not available. Unable to process query.');
-    return "I'm sorry, but I'm currently unable to process your query. Please try again later.";
-  }
-  
-  try {
-    // Get embeddings for the query
-    const queryEmbedding = await getEmbeddings(query);
-    
-    // Search the vector store for relevant information
-    const searchResults = await vectorStore.query({
-      vector: queryEmbedding[0], // Assuming getEmbeddings returns an array
-      topK: 3,
-      includeMetadata: true
-    });
-
-    // Extract relevant context from search results
-    const context = searchResults.matches
-      .map(match => match.metadata.text)
-      .join('\n\n');
-
-    // Prepare the prompt for Gemini
-    const prompt = `You are an AI assistant for a restaurant. Use the following context to answer the customer's question. If the context doesn't contain relevant information, use your general knowledge about restaurants to provide a helpful response.
-
-Context:
-${context}
-
-Customer Question: ${query}
-
-Your response should be friendly, concise, and directly address the customer's question. If you're unsure or the information isn't available, politely say so and offer to help with something else.
-
-Response:`;
-
-    // Generate response using Gemini
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error('Error handling customer query:', error);
-    return "I apologize, but I'm having trouble processing your request right now. Is there something else I can help you with, like showing you our menu or making a reservation?";
-  }
-}
 
 const API_KEY = process.env.HUGGINGFACE_API_KEY;
 const API_URL = 'https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2';
@@ -163,38 +115,45 @@ async function getEmbeddings(text) {
     });
 
     const data = await response.json();
-    return data;
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    return data.embeddings; // Ensure this matches the API's response structure
   } catch (error) {
+    console.error(`Error fetching embeddings: ${error.message}`);
     throw new Error(`Error fetching embeddings: ${error.message}`);
   }
 }
 
 // Initialize VectorStore with business information
 async function initializeVectorStore() {
-  const loader = new TextLoader("./business_info.txt");
-  const docs = await loader.load();
-  
-  const textSplitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 1000,
-    chunkOverlap: 200,
-  });
-  const splitDocs = await textSplitter.splitDocuments(docs);
+  try {
+    const loader = new TextLoader("./business_info.txt");
+    const docs = await loader.load();
+    
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+    const splitDocs = await textSplitter.splitDocuments(docs);
 
-  const index = pinecone.Index('quick-start');
-  
-  // Batch embedding generation and storage
-  // Assuming getEmbeddings function returns an array of embeddings
-  const embeddings = await Promise.all(splitDocs.map(doc => getEmbeddings(doc.pageContent)));
-  
-  // Prepare data for indexing
-  const operations = embeddings.map((embedding, idx) => ({
-    id: splitDocs[idx].metadata.source || `doc_${Math.random().toString(36).substring(7)}`, // Ensure unique ID
-    values: embedding,
-    metadata: { text: splitDocs[idx].pageContent }
-  }));
+    const index = pinecone.index('quick-start');
+    
+    // Batch embedding generation and storage
+    const embeddings = await Promise.all(splitDocs.map(doc => getEmbeddings(doc.pageContent)));
+    
+    // Prepare data for indexing
+    const operations = embeddings.map((embedding, idx) => ({
+      id: splitDocs[idx].metadata.source || `doc_${Math.random().toString(36).substring(7)}`, // Ensure unique ID
+      values: embedding,
+      metadata: { text: splitDocs[idx].pageContent }
+    }));
 
-  // Upsert data into Pinecone
-  await index.upsert(operations);
+    // Upsert data into Pinecone
+    await index.upsert({ vectors: operations });
+  } catch (error) {
+    console.error('Error initializing vector store:', error);
+  }
 }
 
 // Sample menu data structure
@@ -266,26 +225,27 @@ function placeOrder(userId, itemIds) {
 // Function to handle customer queries
 async function handleCustomerQuery(query) {
   if (!vectorStore) {
-    vectorStore = await initializeVectorStore();
+    console.error('Vector store is not available. Unable to process query.');
+    return "I'm sorry, but I'm currently unable to process your query. Please try again later.";
   }
   
-  const queryEmbedding = await getEmbeddings(query);
-  const searchResults = await vectorStore.query({
-    vector: queryEmbedding,
-    topK: 2,
-    includeMetadata: true
-  });
-
-  const context = searchResults.matches.map(match => match.metadata.text).join('\n');
-  
-  const prompt = `Context: ${context}\n\nQuestion: ${query}\n\nAnswer:`;
-  
   try {
+    const queryEmbedding = await getEmbeddings(query);
+    const searchResults = await vectorStore.query({
+      vector: queryEmbedding,
+      topK: 2,
+      includeMetadata: true
+    });
+
+    const context = searchResults.matches.map(match => match.metadata.text).join('\n');
+    
+    const prompt = `Context: ${context}\n\nQuestion: ${query}\n\nAnswer:`;
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
   } catch (error) {
-    console.error('Error generating content:', error);
+    console.error('Error handling customer query:', error);
     return "I'm sorry, I couldn't process your request. Please try again later.";
   }
 }
@@ -357,7 +317,6 @@ async function reply(userId, msg) {
       For more information, visit our website: https://yourrestaurant.com`;
     }
     
-    
     // If no specific command is recognized, treat it as a general query
     else {
       return await handleCustomerQuery(msg);
@@ -398,4 +357,3 @@ app.post('/incoming', async (req, res) => {
 app.get('/', (req, res) => {
   res.json('Deployment successful on Vercel!');
 });
-
