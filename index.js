@@ -183,15 +183,18 @@ async function initializeVectorStore() {
   const index = pinecone.Index('quick-start');
   
   // Batch embedding generation and storage
+  // Assuming getEmbeddings function returns an array of embeddings
   const embeddings = await Promise.all(splitDocs.map(doc => getEmbeddings(doc.pageContent)));
-  const operations = embeddings.map((embedding, index) => ({
-    id: splitDocs[index].metadata.source || Math.random().toString(36).substring(7),
+  
+  // Prepare data for indexing
+  const operations = embeddings.map((embedding, idx) => ({
+    id: splitDocs[idx].metadata.source || `doc_${Math.random().toString(36).substring(7)}`, // Ensure unique ID
     values: embedding,
-    metadata: { text: splitDocs[index].pageContent }
+    metadata: { text: splitDocs[idx].pageContent }
   }));
-  await index.upsert(operations);
 
-  return index;
+  // Upsert data into Pinecone
+  await index.upsert(operations);
 }
 
 // Sample menu data structure
@@ -395,3 +398,4 @@ app.post('/incoming', async (req, res) => {
 app.get('/', (req, res) => {
   res.json('Deployment successful on Vercel!');
 });
+
