@@ -1,31 +1,12 @@
 require('dotenv').config();
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Pinecone } = require('@pinecone-database/pinecone');
-const { TextLoader } = require('langchain/document_loaders/fs/text');
-const { RecursiveCharacterTextSplitter } = require('langchain/text_splitter');
-const sanitize = require('mongo-sanitize');
+const sanitize = require('sanitize-html');
 const winston = require('winston');
+const { MessagingResponse } = require('twilio').twiml;
 
-const app = express();
-
-// Rate limiting setup
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later."
-});
-
-// Apply rate limiting to all routes
-app.use(limiter);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-const MessagingResponse = require('twilio').twiml.MessagingResponse;
-
-// Logger setup
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.json(),
@@ -35,128 +16,42 @@ const logger = winston.createLogger({
   ],
 });
 
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple(),
+  }));
+}
 
-// Initialize Pinecone
-const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY
+const splitdocs = require('./splitdocs'); // Import the splitdocs function
+const { queryData } = require('./queryData');
+
+const app = express();
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "Too many requests from this IP, please try again later."
 });
 
-// Create or target an index
-async function setupPinecone() {
-  try {
-    const existingIndexes = await pinecone.listIndexes();
-    console.log("Existing indexes:", existingIndexes);
+app.use(limiter);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-    const indexExists = existingIndexes.indexes.some(index => index.name === 'quick-start');
-
-    if (!indexExists) {
-      await pinecone.createIndex({
-        name: 'quick-start',
-        dimension: 1536,
-        spec: { serverless: { cloud: 'aws', region: 'us-east-1' } }
-      });
-      console.log("Pinecone index created successfully.");
-    } else {
-      console.log("Pinecone index 'quick-start' already exists. Continuing with existing index.");
-    }
-  } catch (error) {
-    console.error('Error setting up Pinecone index:', error);
-    return null;
-  }
-  return pinecone.index('quick-start');
-}
-
+// Initialize Pinecone
+const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
 let vectorStore;
 
-console.log('Starting server...');
-
-// Initialize vector store
-(async () => {
+async function setupPinecone() {
   try {
-    console.log('Setting up Pinecone...');
-    vectorStore = await setupPinecone();
-    if (!vectorStore) {
-      console.error('Failed to set up Pinecone index. Some functionality may be limited.');
-    } else {
-      console.log('Pinecone index set up successfully.');
-      await initializeVectorStore(); // Initialize the vector store with business info
-    }
-    console.log('Pinecone setup complete, initializing other components...');
-
-    console.log('All components initialized, starting Express server...');
-    
-    const PORT = process.env.PORT || 3001;
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-    
-    console.log('Server start command issued.');
+    const indexName = "kofi";
+    const index = pinecone.index(indexName);
+    await index.describe();
+    return index;
   } catch (error) {
-    console.error('Error during server startup:', error);
-  }
-})();
-
-const API_KEY = process.env.HUGGINGFACE_API_KEY;
-const API_URL = 'https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2';
-
-// Function to get embeddings using Hugging Face with fetch
-async function getEmbeddings(text) {
-  try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ inputs: { text: text } }) // Ensure the input is wrapped correctly
-    });
-
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.error);
-    }
-    return data.embeddings; // Ensure this matches the API's response structure
-  } catch (error) {
-    console.error(`Error fetching embeddings: ${error.message}`);
-    throw new Error(`Error fetching embeddings: ${error.message}`);
+    console.error('Error setting up Pinecone:', error);
+    return null;
   }
 }
 
-// Initialize VectorStore with business information
-async function initializeVectorStore() {
-  try {
-    const loader = new TextLoader("./business_info.txt");
-    const docs = await loader.load();
-    
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    });
-    const splitDocs = await textSplitter.splitDocuments(docs);
-
-    const index = pinecone.index('quick-start');
-    
-    // Batch embedding generation and storage
-    const embeddings = await Promise.all(splitDocs.map(doc => getEmbeddings(doc.pageContent)));
-    
-    // Prepare data for indexing
-    const operations = embeddings.map((embedding, idx) => ({
-      id: splitDocs[idx].metadata.source || `doc_${Math.random().toString(36).substring(7)}`, // Ensure unique ID
-      values: embedding,
-      metadata: { text: splitDocs[idx].pageContent }
-    }));
-
-    // Upsert data into Pinecone
-    await index.upsert({ vectors: operations });
-  } catch (error) {
-    console.error('Error initializing vector store:', error);
-  }
-}
-
-// Sample menu data structure
 const menu = {
   breakfast: [
     { id: 1, name: 'Pancakes', price: 8.99, available: true, allergens: ['gluten', 'dairy'] },
@@ -224,26 +119,20 @@ function placeOrder(userId, itemIds) {
 
 // Function to handle customer queries
 async function handleCustomerQuery(query) {
-  if (!vectorStore) {
-    console.error('Vector store is not available. Unable to process query.');
-    return "I'm sorry, but I'm currently unable to process your query. Please try again later.";
-  }
-  
   try {
-    const queryEmbedding = await getEmbeddings(query);
-    const searchResults = await vectorStore.query({
-      vector: queryEmbedding,
-      topK: 2,
-      includeMetadata: true
+    const queryResponse = await queryData(query);
+    const context = queryResponse.matches.map(match => match.metadata.text).join(' ');
+
+    const generativeAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+    const prompt = `Context: ${context}\nQuery: ${query}\nResponse:`;
+
+    const generatedResponse = await generativeAI.generateText(prompt, {
+      model: 'text-davinci-003',
+      maxTokens: 100,
+      temperature: 0.7,
     });
 
-    const context = searchResults.matches.map(match => match.metadata.text).join('\n');
-    
-    const prompt = `Context: ${context}\n\nQuestion: ${query}\n\nAnswer:`;
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
+    return generatedResponse.text.trim();
   } catch (error) {
     console.error('Error handling customer query:', error);
     return "I'm sorry, I couldn't process your request. Please try again later.";
@@ -280,7 +169,7 @@ async function reply(userId, msg) {
       
       return makeReservation(userId, date, time, partySize);
     } 
-    
+   
     // Order command
     else if (lowercaseMsg.startsWith('order') || 
              lowercaseMsg.startsWith('i want') || 
@@ -353,7 +242,37 @@ app.post('/incoming', async (req, res) => {
   res.end(twiml.toString());
 });
 
-// Move these to the end of the file
+
 app.get('/', (req, res) => {
   res.json('Deployment successful on Vercel!');
+
 });
+
+(async () => {
+  try {
+    console.log('Setting up Pinecone...');
+    vectorStore = await setupPinecone();
+    if (!vectorStore) {
+      console.error('Failed to set up Pinecone index. Some functionality may be limited.');
+    } else {
+      console.log('Pinecone index set up successfully.');
+    }
+    console.log('Pinecone setup complete, initializing other components...');
+
+    // Call the splitdocs function to embed and upload business info to Pinecone
+    await splitdocs();
+
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+
+    console.log('Server start command issued.');
+  } catch (error) {
+    console.error('Error during server startup:', error);
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  }
+})();
