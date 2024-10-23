@@ -22,7 +22,7 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
-const splitdocs = require('./splitdocs'); // Import the splitdocs function
+const { splitdocs } = require('./splitdocs'); // Destructure to get splitdocs directly
 const { queryData } = require('./queryData');
 
 const app = express();
@@ -259,7 +259,7 @@ app.get('/', (req, res) => {
     }
     console.log('Pinecone setup complete, initializing other components...');
 
-    // Call the splitdocs function to embed and upload business info to Pinecone
+    // Correctly call the splitdocs function
     await splitdocs();
 
     const PORT = process.env.PORT || 3001;

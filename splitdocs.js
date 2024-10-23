@@ -72,16 +72,18 @@ async function splitdocs() {
 
   const businessInfo = fs.readFileSync('./business_info.txt', 'utf-8');
   const sentences = businessInfo.split('.');
-  const data = [];
+  const promises = sentences.map((sentence, i) => {
+    const trimmedSentence = sentence.trim();
+    if (trimmedSentence) {
+      return query({ inputs: trimmedSentence }).then(vectorString => {
+        return { id: `vec${i + 1}`, text: trimmedSentence, vector: vectorString };
+      });
+    }
+  });
 
-  for (let i = 0; i < sentences.length; i++) {
-    const sentence = sentences[i].trim();
-    const vectorString = await query({ inputs: sentence });
-    data.push({ id: `vec${i + 1}`, text: sentence, vector: vectorString });
-  }
+  const data = await Promise.all(promises.filter(Boolean));
 
-
-  const vectors = data.map((d, i) => ({
+  const vectors = data.map(d => ({
     id: d.id,
     values: d.vector.split(",").map(parseFloat),
     metadata: { text: d.text }
@@ -92,4 +94,19 @@ async function splitdocs() {
   console.log('Business info embedded and uploaded to Pinecone.');
 }
 
-module.exports = splitdocs;
+function GET(request) {
+  try {
+    let businessInfoPath = path.join(process.cwd(), 'business_info.txt');
+    let file = fs.readFileSync(businessInfoPath, 'utf8');
+    return new Response(file, {
+      headers: {
+        'Content-Type': 'text/plain'  // Serving as plain text
+      }
+    });
+  } catch (error) {
+    console.error('Failed to read business info file:', error);
+    return new Response('Error reading business info file', { status: 500 });
+  }
+}
+
+module.exports = { splitdocs, GET };
