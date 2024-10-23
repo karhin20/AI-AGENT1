@@ -226,8 +226,7 @@ app.post('/incoming', async (req, res) => {
   const message = req.body;
   const userId = message.From; // Assuming 'From' contains the userId
 
-  // Log the incoming request details
-  logger.info(`Received message from ${userId}: ${message.Body}`);
+  logger.info(`Received message from ${userId}: ${JSON.stringify(message)}`); // Log the entire message object
 
   const twiml = new MessagingResponse();
   
@@ -235,16 +234,14 @@ app.post('/incoming', async (req, res) => {
     if (!message.Body) {
       throw new Error("Message body is undefined");
     }
-    const aiReply = await reply(message.Body);
+    const aiReply = await reply(userId, message.Body); // Pass userId and message.Body
     twiml.message(aiReply);
 
-    // Log the successful processing of the message
     logger.info(`Processed message for ${userId}: ${message.Body}`);
   } catch (error) {
     console.error(`Error in /incoming route for ${userId}:`, error);
     twiml.message("I apologize, but I'm experiencing technical difficulties. Please try again later.");
 
-    // Log the error with details
     logger.error(`Error processing message from ${userId}: ${message.Body}`, { error: error.message });
   }
 
