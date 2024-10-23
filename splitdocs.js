@@ -96,7 +96,7 @@ async function splitdocs() {
 
 function GET(request) {
   try {
-    let businessInfoPath = path.join(process.cwd(), 'business_info.txt');
+    let businessInfoPath = process.cwd() + '/business_info.txt';
     let file = fs.readFileSync(businessInfoPath, 'utf8');
     return new Response(file, {
       headers: {
