@@ -37,9 +37,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Initialize Pinecone
-const pinecone = new Pinecone({ 
-  apiKey: process.env.PINECONE_API_KEY
-});
+
 let vectorStore;
 
 async function setupPinecone() {

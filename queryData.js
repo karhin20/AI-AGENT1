@@ -2,7 +2,10 @@ const { Pinecone } = require('@pinecone-database/pinecone');
 require('dotenv').config();
 
 // Initialize Pinecone client
-const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
+const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY,
+    controllerHostUrl: 'https://kofi-g6t3ouo.svc.aped-4627-b74a.pinecone.io'
+
+ });
 
 async function queryData(query) {
     const model = 'intfloat/multilingual-e5-large'; // Example model, adjust as necessary
