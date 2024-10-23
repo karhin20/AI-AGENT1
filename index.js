@@ -38,8 +38,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Initialize Pinecone
 const pinecone = new Pinecone({ 
-  apiKey: process.env.PINECONE_API_KEY,
-  controllerHostUrl: 'https://kofi-g6t3ouo.svc.aped-4627-b74a.pinecone.io',
+  apiKey: process.env.PINECONE_API_KEY
 });
 let vectorStore;
 
