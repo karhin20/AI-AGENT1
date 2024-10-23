@@ -224,18 +224,28 @@ app.use((err, req, res, next) => {
 
 app.post('/incoming', async (req, res) => {
   const message = sanitize(req.body);
-  const userId = message.From; // Using phone number as userId
+  const userId = message.From; // Assuming 'From' contains the userId
+
+  // Log the incoming request details
+  logger.info(`Received message from ${userId}: ${message.Body}`);
+
   const twiml = new MessagingResponse();
   
-  logger.info(`Received message from ${userId}: ${message.Body}`);
-  
   try {
-    const aiReply = await reply(userId, message.Body);
+    if (!message.Body) {
+      throw new Error("Message body is undefined");
+    }
+    const aiReply = await reply(message.Body);
     twiml.message(aiReply);
-    logger.info(`Sent reply to ${userId}: ${aiReply}`);
+
+    // Log the successful processing of the message
+    logger.info(`Processed message for ${userId}: ${message.Body}`);
   } catch (error) {
-    logger.error(`Error in /incoming route for ${userId}:`, error);
+    console.error(`Error in /incoming route for ${userId}:`, error);
     twiml.message("I apologize, but I'm experiencing technical difficulties. Please try again later.");
+
+    // Log the error with details
+    logger.error(`Error processing message from ${userId}: ${message.Body}`, { error: error.message });
   }
 
   res.status(200).type('text/xml');
