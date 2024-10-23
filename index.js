@@ -37,19 +37,41 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Initialize Pinecone
-const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
+const pinecone = new Pinecone({ 
+  apiKey: process.env.PINECONE_API_KEY,
+  controllerHostUrl: 'https://kofi-g6t3ouo.svc.aped-4627-b74a.pinecone.io',
+});
 let vectorStore;
 
 async function setupPinecone() {
+  const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY }); 
+  const indexName = "kofi";
+  let index; 
+
   try {
-    const indexName = "kofi";
-    const index = pinecone.index(indexName);
-    await pinecone.describeIndex(indexName);
-    return index;
+    index = pinecone.index(indexName);
+    console.log(`Index '${indexName}' already exists. Skipping index creation.`);
   } catch (error) {
-    console.error('Error setting up Pinecone:', error);
-    return null;
+    if (error.code === 'INDEX_NOT_FOUND') {
+      await pinecone.createIndex({
+        name: indexName,
+        dimension: 1024,
+        metric: 'cosine',
+        spec: {
+          serverless: {
+            cloud: 'aws',
+            region: 'us-east-1'
+          }
+        }
+      });
+      index = pinecone.index(indexName);
+      console.log(`Index '${indexName}' created successfully.`);
+    } else {
+      throw error;
+    }
   }
+
+  return index;
 }
 
 const menu = {
