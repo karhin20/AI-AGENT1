@@ -223,7 +223,7 @@ app.use((err, req, res, next) => {
 });
 
 app.post('/incoming', async (req, res) => {
-  const message = sanitize(req.body);
+  const message = req.body;
   const userId = message.From; // Assuming 'From' contains the userId
 
   // Log the incoming request details
