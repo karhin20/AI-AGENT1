@@ -11,7 +11,7 @@ async function queryData(query) {
     const model = 'intfloat/multilingual-e5-large'; // Example model, adjust as necessary
 
     // Fetch embedding for the query
-    const embedding = await pc.inference.embed(
+    const embedding = await pc.inference(
         model,
         [query],
         { inputType: 'query' }
