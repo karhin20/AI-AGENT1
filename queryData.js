@@ -16,6 +16,9 @@ async function queryData(query) {
         { inputType: 'query' }
     );
 
+    // Console log the generated embedding
+    console.log('Generated embedding:', embedding);
+
     // Initialize the index
     const index = pc.index('kofi'); // Adjust index name as necessary
 
