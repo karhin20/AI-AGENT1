@@ -44,7 +44,7 @@ async function setupPinecone() {
   try {
     const indexName = "kofi";
     const index = pinecone.index(indexName);
-    await index.describe();
+    await pinecone.describeIndex(indexName);
     return index;
   } catch (error) {
     console.error('Error setting up Pinecone:', error);

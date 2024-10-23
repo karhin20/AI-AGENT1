@@ -22,14 +22,14 @@ async function query(data) {
     }
 
     const result = await response.json();
-    console.log("API Response:", result);
+ 
 
     if (!Array.isArray(result)) {
       throw new Error("Unexpected API response format. Response is not an array.");
     }
 
     const vectorString = result.join(",");
-    console.log("Vector:", vectorString);
+ 
     return vectorString;
   } catch (error) {
     console.error("Error in query function:", error);
