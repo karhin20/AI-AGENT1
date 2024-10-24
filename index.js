@@ -32,6 +32,8 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later."
 });
 
+app.set('trust proxy', true); 
+
 app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -71,16 +73,16 @@ async function setupPinecone() {
 
 const menu = {
   breakfast: [
-    { id: 1, name: 'Pancakes', price: 8.99, available: true, allergens: ['gluten', 'dairy'] },
-    { id: 2, name: 'Omelette', price: 10.99, available: true, allergens: ['eggs'] },
+    { id: 1, name: 'Pancakes', price: 80.99, available: true, allergens: ['gluten', 'dairy'] },
+    { id: 2, name: 'Omelette', price: 100.99, available: true, allergens: ['eggs'] },
   ],
   lunch: [
-    { id: 3, name: 'Caesar Salad', price: 12.99, available: true, allergens: ['dairy'] },
-    { id: 4, name: 'Burger', price: 14.99, available: true, allergens: ['gluten'] },
+    { id: 3, name: 'Caesar Salad', price: 92.99, available: true, allergens: ['dairy'] },
+    { id: 4, name: 'Burger', price: 140.99, available: true, allergens: ['gluten'] },
   ],
   dinner: [
-    { id: 5, name: 'Steak', price: 24.99, available: true, allergens: [] },
-    { id: 6, name: 'Salmon', price: 22.99, available: true, allergens: ['fish'] },
+    { id: 5, name: 'Steak', price: 74.99, available: true, allergens: [] },
+    { id: 6, name: 'Salmon', price: 60.99, available: true, allergens: ['fish'] },
   ]
 };
 
@@ -131,7 +133,7 @@ function placeOrder(userId, itemIds) {
   if (!loyaltyPoints[userId]) loyaltyPoints[userId] = 0;
   loyaltyPoints[userId] += Math.floor(total);
   
-  return `Order placed successfully. Total: $${total.toFixed(2)}. You now have ${loyaltyPoints[userId]} loyalty points.`;
+  return `Order placed successfully. Total: GH₵${total.toFixed(2)}. You now have ${loyaltyPoints[userId]} loyalty points.`;
 }
 
 // Function to handle customer queries
@@ -141,7 +143,7 @@ async function handleCustomerQuery(query, userId) {
 
   const model = genAI.getGenerativeModel({
     model: "gemini-1.5-flash",
-    systemInstruction: "-Greet customers and ask them how their day is going.\n-Ask them how you can help them\n-You are a restaurant assistant\n",
+    systemInstruction: "-Be precise and consise.\n-You are A Restaurant AI ASSISTANT.\n-Your name is Food AI Kofi.\n-Greet customers and ask them how their day is going.\n-Ask them how you can help them\n-You are a restaurant assistant\n",
   });
 
   const generationConfig = {
@@ -174,13 +176,11 @@ async function handleCustomerQuery(query, userId) {
     });
 
     const result = await chatSession.sendMessage(prompt);
-    console.log('Gemini response:', result.response); // Log the entire result object
 
-    // Call the text function to get the response text
+
     let responseText = result.response.text(); 
-    responseText = responseText.trim(); // Trim the response text
+    responseText = responseText.trim(); 
 
-    console.log('Gemini response text:', responseText); // Log the extracted text
 
     return responseText;
   } catch (error) {
@@ -199,8 +199,8 @@ async function reply(userId, msg) {
       lowercaseMsg.includes('what can i order') ||
       lowercaseMsg.includes('what\'s available')) {
     const currentMenu = getCurrentMenu();
-    const menuPreview = currentMenu.slice(0, 3).map(item => `${item.id}: ${item.name} - $${item.price}`).join('\n');
-    return `Here's a preview of our current menu:\n${menuPreview}\n\nView our full menu here: https://yourrestaurant.com/menu`;
+    const menuPreview = currentMenu.slice(0, 3).map(item => `${item.id}: ${item.name} - GH₵${item.price}`).join('\n');
+    return `Here's a preview of our current menu:\n${menuPreview}\n\nView our full menu here: https://yourrestaurant.com/menu Kindly send the number of the food you want to order. `;
   } 
   // Reservation command
   else if (lowercaseMsg.startsWith('reserve') || 
@@ -212,10 +212,14 @@ async function reply(userId, msg) {
     const partySize = parseInt(parts.find(part => !isNaN(part)));
     
     if (!date || !time || isNaN(partySize)) {
-      return "I'm sorry, I couldn't understand your reservation request. Please use the format: 'reserve YYYY-MM-DD HH:MM for X people'\n\nOr make a reservation online: https://yourrestaurant.com/reservations";
+      return "I'm sorry, I couldn't understand your reservation request. Please use the format: 'reserve YYYY-MM-DD HH:MM for X people'\n\nOr call us on +233 543 119 117 to make a reservation";
     }
-    
-    return makeReservation(userId, date, time, partySize);
+
+    try {
+      return makeReservation(userId, date, time, partySize);
+    } catch (error) {
+      return error.message;
+    }
   } 
   // Order command
   else if (lowercaseMsg.startsWith('order') || 
@@ -226,10 +230,14 @@ async function reply(userId, msg) {
                        .map(Number);
     
     if (itemIds.length === 0) {
-      return "I'm sorry, I couldn't understand your order. Please specify item numbers from the menu.\n\nView our menu and order online: https://yourrestaurant.com/order";
+      return "I'm sorry, I couldn't understand your order. Please specify item numbers from the menu.\n\nView our menu by sending 'menu'";
     }
     
-    return placeOrder(userId, itemIds);
+    try {
+      return placeOrder(userId, itemIds);
+    } catch (error) {
+      return error.message;
+    }
   } 
   // Loyalty points command
   else if (lowercaseMsg.includes('points') || 
@@ -241,16 +249,9 @@ async function reply(userId, msg) {
   else if (lowercaseMsg.includes('help') || 
            lowercaseMsg.includes('what can you do') || 
            lowercaseMsg === 'commands') {
-    return `I can help you with the following:
-    - View the menu: Say 'menu' or 'what can I order?'
-    - Make a reservation: Say 'reserve [date] [time] for [number] people'
-    - Place an order: Say 'order' followed by item numbers
-    - Check loyalty points: Say 'points' or 'loyalty'
-    - Ask about our restaurant: Just ask your question!
-
-    For more information, visit our website: https://yourrestaurant.com`;
-  }
-  // If no specific command is recognized, treat it as a general query
+    return `I can assist you with the following:\n\n- View the menu: Say 'menu' or 'what can I order?'\n- Make a reservation: Say 'reserve [date] [time] for [number] people'\n- Place an order: Say 'order' followed by item numbers\n- Check loyalty points: Say 'points' or 'loyalty'\n- Ask about our restaurant: Just ask your question!\n\nFor more information, visit our website: [Restaurant Website](https://yourrestaurant.com).`;
+  } 
+  // General query
   else {
     return await handleCustomerQuery(msg, userId);
   }
