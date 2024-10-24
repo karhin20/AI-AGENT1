@@ -139,8 +139,8 @@ function placeOrder(userId, itemIds) {
 // Function to handle customer queries
 async function handleCustomerQuery(query) {
   try {
-    const queryResponse = await queryData(query);
-    const context = queryResponse.matches.map(match => match.metadata.text).join(' ');
+    const results = await queryData(query);
+    const context = results.matches.map(match => match.metadata.text).join(' ');
 
     const generativeAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
     const prompt = `Context: ${context}\nQuery: ${query}\nResponse:`;
@@ -287,6 +287,21 @@ app.get('/', (req, res) => {
 
     // Correctly call the splitdocs function
     await splitdocs();
+
+
+    const query = "What are your opening hours?";
+
+    queryData(query)
+      .then((results) => {
+        console.log("Query:", query);
+        console.log("Results:", results);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+
+
+
 
     const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => {
