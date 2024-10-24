@@ -146,7 +146,7 @@ async function handleCustomerQuery(query) {
     const prompt = `Context: ${context}\nQuery: ${query}\nResponse:`;
 
     const generatedResponse = await generativeAI.generateText(prompt, {
-      model: 'text-davinci-003',
+      model: 'gemini-1.0-pro',
       maxTokens: 100,
       temperature: 0.7,
     });
