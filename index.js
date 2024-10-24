@@ -160,78 +160,68 @@ async function handleCustomerQuery(query) {
 
 // Enhanced reply function
 async function reply(userId, msg) {
-  try {
-    const lowercaseMsg = msg.toLowerCase().trim();
+  const lowercaseMsg = msg.toLowerCase().trim();
 
-    // Menu command
-    if (lowercaseMsg.startsWith('menu') || 
-        lowercaseMsg.includes('show menu') || 
-        lowercaseMsg.includes('what can i order') ||
-        lowercaseMsg.includes('what\'s available')) {
-      const currentMenu = getCurrentMenu();
-      const menuPreview = currentMenu.slice(0, 3).map(item => `${item.id}: ${item.name} - $${item.price}`).join('\n');
-      return `Here's a preview of our current menu:\n${menuPreview}\n\nView our full menu here: https://yourrestaurant.com/menu`;
-    } 
+  // Menu command
+  if (lowercaseMsg.startsWith('menu') || 
+      lowercaseMsg.includes('show menu') || 
+      lowercaseMsg.includes('what can i order') ||
+      lowercaseMsg.includes('what\'s available')) {
+    const currentMenu = getCurrentMenu();
+    const menuPreview = currentMenu.slice(0, 3).map(item => `${item.id}: ${item.name} - $${item.price}`).join('\n');
+    return `Here's a preview of our current menu:\n${menuPreview}\n\nView our full menu here: https://yourrestaurant.com/menu`;
+  } 
+  // Reservation command
+  else if (lowercaseMsg.startsWith('reserve') || 
+           lowercaseMsg.startsWith('book') || 
+           lowercaseMsg.includes('make a reservation')) {
+    const parts = msg.split(' ');
+    const date = parts.find(part => part.includes('-') || part.includes('/'));
+    const time = parts.find(part => part.includes(':'));
+    const partySize = parseInt(parts.find(part => !isNaN(part)));
     
-    // Reservation command
-    else if (lowercaseMsg.startsWith('reserve') || 
-             lowercaseMsg.startsWith('book') || 
-             lowercaseMsg.includes('make a reservation')) {
-      const parts = msg.split(' ');
-      const date = parts.find(part => part.includes('-') || part.includes('/'));
-      const time = parts.find(part => part.includes(':'));
-      const partySize = parseInt(parts.find(part => !isNaN(part)));
-      
-      if (!date || !time || isNaN(partySize)) {
-        return "I'm sorry, I couldn't understand your reservation request. Please use the format: 'reserve YYYY-MM-DD HH:MM for X people'\n\nOr make a reservation online: https://yourrestaurant.com/reservations";
-      }
-      
-      return makeReservation(userId, date, time, partySize);
-    } 
-   
-    // Order command
-    else if (lowercaseMsg.startsWith('order') || 
-             lowercaseMsg.startsWith('i want') || 
-             lowercaseMsg.startsWith('can i get')) {
-      const itemIds = msg.split(' ')
-                         .filter(word => !isNaN(word))
-                         .map(Number);
-      
-      if (itemIds.length === 0) {
-        return "I'm sorry, I couldn't understand your order. Please specify item numbers from the menu.\n\nView our menu and order online: https://yourrestaurant.com/order";
-      }
-      
-      return placeOrder(userId, itemIds);
-    } 
-    
-    // Loyalty points command
-    else if (lowercaseMsg.includes('points') || 
-             lowercaseMsg.includes('loyalty') || 
-             lowercaseMsg.includes('rewards')) {
-      return `You have ${loyaltyPoints[userId] || 0} loyalty points.\n\nLearn more about our loyalty program: https://yourrestaurant.com/loyalty`;
-    } 
-    
-    // Help command
-    else if (lowercaseMsg.includes('help') || 
-             lowercaseMsg.includes('what can you do') || 
-             lowercaseMsg === 'commands') {
-      return `I can help you with the following:
-      - View the menu: Say 'menu' or 'what can I order?'
-      - Make a reservation: Say 'reserve [date] [time] for [number] people'
-      - Place an order: Say 'order' followed by item numbers
-      - Check loyalty points: Say 'points' or 'loyalty'
-      - Ask about our restaurant: Just ask your question!
-
-      For more information, visit our website: https://yourrestaurant.com`;
+    if (!date || !time || isNaN(partySize)) {
+      return "I'm sorry, I couldn't understand your reservation request. Please use the format: 'reserve YYYY-MM-DD HH:MM for X people'\n\nOr make a reservation online: https://yourrestaurant.com/reservations";
     }
     
-    // If no specific command is recognized, treat it as a general query
-    else {
-      return await handleCustomerQuery(msg);
+    return makeReservation(userId, date, time, partySize);
+  } 
+  // Order command
+  else if (lowercaseMsg.startsWith('order') || 
+           lowercaseMsg.startsWith('i want') || 
+           lowercaseMsg.startsWith('can i get')) {
+    const itemIds = msg.split(' ')
+                       .filter(word => !isNaN(word))
+                       .map(Number);
+    
+    if (itemIds.length === 0) {
+      return "I'm sorry, I couldn't understand your order. Please specify item numbers from the menu.\n\nView our menu and order online: https://yourrestaurant.com/order";
     }
-  } catch (error) {
-    console.error('Error in reply function:', error);
-    return "I'm sorry, an error occurred while processing your request. Please try again or visit our support page: https://yourrestaurant.com/support";
+    
+    return placeOrder(userId, itemIds);
+  } 
+  // Loyalty points command
+  else if (lowercaseMsg.includes('points') || 
+           lowercaseMsg.includes('loyalty') || 
+           lowercaseMsg.includes('rewards')) {
+    return `You have ${loyaltyPoints[userId] || 0} loyalty points.\n\nLearn more about our loyalty program: https://yourrestaurant.com/loyalty`;
+  } 
+  // Help command
+  else if (lowercaseMsg.includes('help') || 
+           lowercaseMsg.includes('what can you do') || 
+           lowercaseMsg === 'commands') {
+    return `I can help you with the following:
+    - View the menu: Say 'menu' or 'what can I order?'
+    - Make a reservation: Say 'reserve [date] [time] for [number] people'
+    - Place an order: Say 'order' followed by item numbers
+    - Check loyalty points: Say 'points' or 'loyalty'
+    - Ask about our restaurant: Just ask your question!
+
+    For more information, visit our website: https://yourrestaurant.com`;
+  }
+  // If no specific command is recognized, treat it as a general query
+  else {
+    return await handleCustomerQuery(msg);
   }
 }
 
@@ -253,7 +243,8 @@ app.post('/incoming', async (req, res) => {
     if (!message.Body) {
       throw new Error("Message body is undefined");
     }
-    const aiReply = await reply(userId, message.Body); // Pass userId and message.Body
+    const sanitizedMessage = sanitize(message.Body);
+    const aiReply = await reply(userId, sanitizedMessage);
     twiml.message(aiReply);
 
     logger.info(`Processed message for ${userId}: ${message.Body}`);
@@ -287,19 +278,6 @@ app.get('/', (req, res) => {
 
     // Correctly call the splitdocs function
     await splitdocs();
-
-
-    const query = "What are your opening hours?";
-
-    queryData(query)
-      .then((results) => {
-        console.log("Query:", query);
-        console.log("Results:", results);
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
-
 
 
 
