@@ -22,7 +22,7 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
-const { splitdocs } = require('./splitdocs'); // Destructure to get splitdocs directly
+const { splitdocs } = require('./splitdocs');
 const { queryData } = require('./queryData');
 
 const app = express();
@@ -35,8 +35,6 @@ const limiter = rateLimit({
 app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Initialize Pinecone
 
 let vectorStore;
 
@@ -137,21 +135,54 @@ function placeOrder(userId, itemIds) {
 }
 
 // Function to handle customer queries
-async function handleCustomerQuery(query) {
+async function handleCustomerQuery(query, userId) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: "-Greet customers and ask them how their day is going.\n-Ask them how you can help them\n-You are a restaurant assistant\n",
+  });
+
+  const generationConfig = {
+    temperature: 0.5,
+    topP: 0.95,
+    topK: 64,
+    maxOutputTokens: 500,
+    responseMimeType: "text/plain",
+  };
+
   try {
     const results = await queryData(query);
+
     const context = results.matches.map(match => match.metadata.text).join(' ');
 
-    const generativeAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
     const prompt = `Context: ${context}\nQuery: ${query}\nResponse:`;
 
-    const generatedResponse = await generativeAI.generateText(prompt, {
-      model: 'gemini-1.5-flash',
-      maxTokens: 100,
-      temperature: 0.7,
+    const chatSession = model.startChat({
+      generationConfig,
+      history: [
+        {
+          role: "user",
+          parts: [{ text: query }],
+        },
+        {
+          role: "model",
+          parts: [{ text: "How can I assist you today?" }],
+        },
+      ],
     });
 
-    return generatedResponse.text.trim();
+    const result = await chatSession.sendMessage(prompt);
+    console.log('Gemini response:', result.response); // Log the entire result object
+
+    // Call the text function to get the response text
+    let responseText = result.response.text(); 
+    responseText = responseText.trim(); // Trim the response text
+
+    console.log('Gemini response text:', responseText); // Log the extracted text
+
+    return responseText;
   } catch (error) {
     console.error('Error handling customer query:', error);
     return "I'm sorry, I couldn't process your request. Please try again later.";
@@ -221,7 +252,7 @@ async function reply(userId, msg) {
   }
   // If no specific command is recognized, treat it as a general query
   else {
-    return await handleCustomerQuery(msg);
+    return await handleCustomerQuery(msg, userId);
   }
 }
 
