@@ -143,14 +143,14 @@ async function handleCustomerQuery(query, userId) {
 
   const model = genAI.getGenerativeModel({
     model: "gemini-1.5-flash",
-    systemInstruction: "-Be precise and consise.\n-You are A Restaurant AI ASSISTANT.\n-Your name is Food AI Kofi.\n-Greet customers and ask them how their day is going.\n-Ask them how you can help them\n-You are a restaurant assistant\n",
+    systemInstruction: "-Be precise and concise and do not repeat yourself and do not give long answers.\nDo not give information you have not be asked and be professional.\n-You are A Restaurant AI ASSISTANT.\n-Your name is Food AI Kofi.\n-Greet customers and ask them how their day is going.\n-Ask them how you can help them\n-You are a restaurant assistant\n",
   });
 
   const generationConfig = {
     temperature: 0.5,
     topP: 0.95,
     topK: 64,
-    maxOutputTokens: 500,
+    maxOutputTokens: 200,
     responseMimeType: "text/plain",
   };
 
