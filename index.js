@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const rateLimit = require('express-rate-limit');
+///const rateLimit = require('express-rate-limit');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Pinecone } = require('@pinecone-database/pinecone');
 const sanitize = require('sanitize-html');
@@ -26,15 +26,15 @@ const { splitdocs } = require('./splitdocs');
 const { queryData } = require('./queryData');
 
 const app = express();
-const limiter = rateLimit({
+/*const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: "Too many requests from this IP, please try again later."
 });
 
-app.set('trust proxy', true); 
+///app.set('trust proxy', true); 
 
-app.use(limiter);
+app.use(limiter);*/
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

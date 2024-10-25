@@ -1,4 +1,4 @@
-Welcome to We Eating Good Kitchen, a culinary gem nestled in the heart of downtown. Our restaurant combines classic Ghanaian techniques with modern flavors to create a unique dining experience.
+Welcome to We Eating Good Kitchen, a culinary gem nestled in the heart of Achimota, Accra. Our restaurant combines classic Ghanaian techniques with modern flavors to create a unique dining experience.
 
 History:
 Established in 2010 by renowned chef K Arhin, Eating Good Kitchen has quickly become a local favorite and a must-visit destination for food enthusiasts.
@@ -43,7 +43,14 @@ Founder: Kofi Arhin
 Dress Code:
 We maintain a smart casual dress code. While we don't require jackets for gentlemen, we do ask that guests refrain from wearing athletic wear, beachwear, or overly casual attire.
 
-Location
+Location:
+We are located at 123 Main Street, Achimota.
+
+How to Order Food:
+You can order food right here by sending 'order' followed by the fooditem number. Example: 'order 1'
+
+Menu:
+You can view our currentmenu by sending 'menu'
 
 Chef's Table:
 For a truly unique experience, book our Chef's Table. This intimate setting for up to 6 guests offers a front-row view of the kitchen and a specially curated tasting menu by Chef K Arhin herself.
