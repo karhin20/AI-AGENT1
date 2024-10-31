@@ -223,7 +223,6 @@ async function reply(userId, msg) {
   } 
   // Order command
   else if (lowercaseMsg.startsWith('order') || 
-           lowercaseMsg.startsWith('i want') || 
            lowercaseMsg.startsWith('can i get')) {
     const itemIds = msg.split(' ')
                        .filter(word => !isNaN(word))
